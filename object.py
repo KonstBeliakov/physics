@@ -1,11 +1,13 @@
 from time import perf_counter
 import pygame
-from math import sin, cos
+from math import sin, cos, pi
+from random import randint, uniform
 import numpy as np
+import utils
 
 
 class Object():
-    def __init__(self, x, y, sizeX, sizeY, speedX=0, speedY=0, angle=0, turning_speed=0):
+    def __init__(self, x, y, sizeX, sizeY, speedX=0, speedY=0, angle=0, turning_speed=0.0):
         self.x = x
         self.y = y
         self.angle = angle
@@ -19,18 +21,26 @@ class Object():
 
         self.push_off_the_walls = True
 
-    def update(self):
+        self.count_angles()
+
+    def update(self, objects=None):
         self.x += self.speedX * (perf_counter() - self.time)
         self.y += self.speedY * (perf_counter() - self.time)
 
         self.count_angles() # counting self.a, self.b, self.c, self.d
-        l = [self.a, self.b, self.c, self.d]
 
-        for i in l:
-            if i[0] > screen.get_size()[0] or i[0] < 0:
-                self.speedX *= -1
-            if i[1] > screen.get_size()[1] or i[1] < 0:
-                self.speedY *= -1
+        if self.push_off_the_walls:
+            l = [self.a, self.b, self.c, self.d]
+            for i in l:
+                if i[0] < 0:
+                    self.speedX = abs(self.speedX)
+                elif i[0] > screen.get_size()[0]:
+                    self.speedX = -abs(self.speedX)
+
+                if i[1] < 1:
+                    self.speedY = abs(self.speedY)
+                elif i[1] > screen.get_size()[1]:
+                    self.speedY = -abs(self.speedY)
 
         self.angle += self.turning_speed * (perf_counter() - self.time)
 
@@ -54,12 +64,22 @@ class Object():
         pygame.draw.line(screen, self.color, self.c, self.d, 1)
         pygame.draw.line(screen, self.color, self.d, self.a, 1)
 
+    def collision(self, objects):
+        for obj in objects:
+            if self != obj and utils.rect_intersection(self.a, self.b, self.c, self.d, obj.a, obj.b, obj.c, obj.d):
+                self.color = (255, 0, 0)
+                break
+        else:
+            self.color = (0, 255, 0)
+
 
 if __name__ == '__main__':
     pygame.init()
     screen = pygame.display.set_mode((800, 600))
 
-    obj1 = Object(500, 500, 200, 100, speedX=200, speedY=200, angle=20, turning_speed=.1)
+    objects = [Object(randint(0, screen.get_size()[0]), randint(0, screen.get_size()[1]),
+                      randint(20, 100), randint(20, 100), speedX=randint(0, 400), speedY=randint(0, 400),
+                      angle=0, turning_speed=uniform(0, pi)) for _ in range(10)]
 
     while True:
         for event in pygame.event.get():
@@ -69,7 +89,9 @@ if __name__ == '__main__':
 
         screen.fill((0, 0, 0))
 
-        obj1.update()
-        obj1.draw(screen)
+        for obj in objects:
+            obj.update()
+            obj.draw(screen)
+            obj.collision(objects)
 
         pygame.display.flip()
